@@ -6,12 +6,26 @@ Servo servo1;
 //Locomotion
 #define wheel1 2 //upper left
 #define wheel2 3 //upper right
-#define dir_1 2 //upper left direction
-#define dir_2 3 //upper right direction
-  
+#define dir_1 0 //upper left direction
+#define dir_2 1 //upper right direction
+
+//shooting
+#define flywheel1_dir_pin 4
+#define flywheel2_dir_pin 5
+#define flywheel1_pwm_pin 6
+#define flywheel2_pwm_pin 7
+#define flywheel_speed 255
+
+#define tilting_dir_pin 3
+#define tilting_pwm_pin 5
+#define lifting_dir_pin 2
+#define lifting_pwm_pin 4
+#define lifting_speed 200 
+
 #define min_speed
 #define max_speed
 int motor_Speed;
+int motor_speed = 0;
 
 unsigned char Re_buf[11], counter = 0;
 unsigned char sign = 0;
@@ -21,10 +35,24 @@ bool moving = false;
 bool self_align_on = true;
 
 #define sampletime 0 //sample time  in ms
-double Kp = 3.05, Ki = 0, Kd = 0.5;
-double Input, Output,setpoint;
+double Kp = 3, Ki = 0, Kd = 0.7;
+double Input, Output,setpoint=0;
 double yaw_angle;
 int suss,fail;
+
+int previous_ly, previous_lx;
+int previous_motor_speed = 0;
+bool is_changed = false;
+unsigned int check_counter = 0;
+long previous_millis = 0;
+int ramp_up_value = 1;
+int low_speed = 80;
+int average_speed = 80;
+int error_range = 20;
+int check_cycle = 19;
+int countramp = 0;
+
+int offset = 0;
 
 PID myPID(&Input, &Output, &setpoint, Kp, Ki, Kd, DIRECT);
 
@@ -68,24 +96,36 @@ void RotateLeft(int motor_speed)
 {
   PORTA &= ~(1 << dir_1);
   PORTA |= (1 << dir_2);
-  analogWrite(wheel1, motor_speed);
-  analogWrite(wheel2, motor_speed);
+    analogWrite(wheel1, motor_speed);
+    analogWrite(wheel2, motor_speed);
 }
 
 void RotateRight(int motor_speed)
 {
   PORTA |= (1 << dir_1);
   PORTA &= ~(1 << dir_2);
-  analogWrite(wheel1, motor_speed);
-  analogWrite(wheel2, motor_speed);
+    analogWrite(wheel1, motor_speed);
+    analogWrite(wheel2, motor_speed);
 }
 
 void Forward(int pwm)
 {
-    PORTA |= (1 << dir_1);
-    PORTA |= (1 << dir_2);
+  PORTA |= (1 << dir_1);
+  PORTA |= (1 << dir_2);
     aligned = false;
-      
+  if (previous_millis != millis())
+  {
+    if (motor_speed < pwm)
+    {
+      countramp++;
+      if (countramp >= 10)
+      {
+        countramp = 0;
+        motor_speed += ramp_up_value;
+        Serial.println(motor_speed);
+      }
+    }
+
     if (Output > 0)//deviate to right
   {
     analogWrite(wheel1, capPWMValue(pwm - Output));
@@ -101,15 +141,29 @@ void Forward(int pwm)
     analogWrite(wheel1, pwm);
     analogWrite(wheel2, pwm);
   }
+    previous_millis++;
+    previous_motor_speed = motor_speed;
+  }
 }
 
-void Backward(int  pwm)
+void Backward(int pwm)
 {
+  if (previous_millis != millis())
+  {
+    if (motor_speed < pwm)
+    {
+      countramp++;
+      if (countramp >= 10)
+      {
+        countramp = 0;
+        motor_speed += ramp_up_value;
+      }
+    }
   PORTA &= ~(1 << dir_1);
   PORTA &= ~(1 << dir_2);
-  aligned = false;
+    aligned = false;
 
-  if (Output > 0)//deviate to right
+    if (Output > 0)//deviate to right
   {
     analogWrite(wheel1, capPWMValue(pwm + Output));
     analogWrite(wheel2, capPWMValue(pwm - Output));
@@ -119,12 +173,13 @@ void Backward(int  pwm)
     analogWrite(wheel1, capPWMValue(pwm + Output));
     analogWrite(wheel2, capPWMValue(pwm - Output));
   }
-
-//Move forward 0 degree.
-  else
+  else //Move forward without turning sides
   {
     analogWrite(wheel1, pwm);
     analogWrite(wheel2, pwm);
+  }
+    previous_millis++;
+    previous_motor_speed = motor_speed;
   }
 }
 
@@ -151,9 +206,11 @@ void MotorStopping()
 {
   analogWrite(wheel1, 0);
   analogWrite(wheel2, 0);
+  analogWrite(lifting_pwm_pin, 0);
+  analogWrite(tilting_pwm_pin, 0);
 }
 
-
+//Mechanism
 void up(){
   servo1.write(0);
 }
@@ -162,33 +219,73 @@ void down(){
   servo1.write(255);
 }
 
+void lifting(int pwm)
+{
+  PORTA |= (1 << lifting_dir_pin);
+  analogWrite(lifting_pwm_pin, pwm);
+}
+
+void lowering(int pwm)
+{
+    PORTA &= ~(1 << lifting_dir_pin);
+    analogWrite(lifting_pwm_pin, pwm);
+}
+
+void tilt_up(int pwm)
+{
+    PORTA |= (1 << tilting_dir_pin);
+    analogWrite(tilting_pwm_pin, pwm);
+}
+
+void tilt_down(int pwm)
+{
+    PORTA &= ~(1 << tilting_dir_pin);
+    analogWrite(tilting_pwm_pin, pwm);
+}
+
+void flywheel_start(int pwm)
+{
+  PORTA &= ~(1 << flywheel1_dir_pin);
+  PORTA |= (1 << flywheel2_dir_pin);
+  analogWrite(flywheel1_pwm_pin, pwm);
+  analogWrite(flywheel2_pwm_pin, pwm);
+}
+
+
+
 void dpadmovement(int motor_Speed)
 {
   if(PS4.getButtonPress(L2)){
-    motor_Speed = 20;
+    motor_Speed = 30;
     if (PS4.getButtonPress(UP)) { //when Up button is pressed(leftside of the controller), the light of the controller will light up in red colour
       Serial.println("Up");
         Forward(capPWMValue(motor_Speed));
         //Serial.println("Forward");
       }else if (PS4.getButtonPress(RIGHT)) { //when Right button is pressed, the light of the controller will light up in blue colour
-        Right(capPWMValue(motor_Speed));
+        tilt_down(255);
         //Serial.println("Right");
       }else if (PS4.getButtonPress(DOWN)) { //when Down button is pressed, the light of the controller will light up in yellow colour
          Backward(capPWMValue(motor_Speed));
          //Serial.println("Backward");
       }else if (PS4.getButtonPress(LEFT)) { //when left button is pressed, the light of the controller will light up in green colour
-        Left(capPWMValue(motor_Speed));
+        tilt_up(255);
         //Serial.println("Left");
       }else if (PS4.getButtonPress(L1)){ //when the L1 button is pressed, it will serial print "L1"
         RotateLeft(capPWMValue(motor_Speed));
       }else if (PS4.getButtonPress(R1)){ //when the R1 button is pressed, it will serial print "R1"
         RotateRight(capPWMValue(motor_Speed));
+      }else if (PS4.getButtonPress(CIRCLE)){ //when the R1 button is pressed, it will serial print "R1"
+        lifting(lifting_speed);
+      }else if (PS4.getButtonPress(CROSS)){ //when the R1 button is pressed, it will serial print "R1"
+        lowering(lifting_speed);
+      }else if (PS4.getButtonPress(TRIANGLE)){ //when the R1 button is pressed, it will serial print "R1"
+      }else if (PS4.getButtonPress(SQUARE)){ //when the R1 button is pressed, it will serial print "R1"
+        flywheel_start(0);
       }else{
         MotorStopping();
       }   
   } else{
       if (PS4.getButtonPress(UP)) { //when Up button is pressed(leftside of the controller), the light of the controller will light up in red colour
-      Serial.println("Hey");
         Forward(capPWMValue(motor_Speed));
         //Serial.println("Forward");
       }else if (PS4.getButtonPress(RIGHT)) { //when Right button is pressed, the light of the controller will light up in blue colour
@@ -210,6 +307,8 @@ void dpadmovement(int motor_Speed)
         down();
       }else if (PS4.getButtonPress(TRIANGLE)){ //when the R1 button is pressed, it will serial print "R1"
         resetYawAngle();
+      }else if (PS4.getButtonPress(SQUARE)){ //when the R1 button is pressed, it will serial print "R1"
+        flywheel_start(flywheel_speed);
       }
       else{
         MotorStopping();
@@ -368,9 +467,15 @@ void setup()
   PS4Setup();
   IMUSetup();
   PIDSetup();
+  Serial2.begin(9600);
   pinMode(wheel1,OUTPUT);
   pinMode(wheel2,OUTPUT);
-  servo1.attach(7);
+  pinMode(flywheel1_pwm_pin, OUTPUT);
+  pinMode(flywheel2_pwm_pin, OUTPUT);
+  servo1.attach(8);
+  flywheel_start(0);
+  analogWrite(tilting_pwm_pin, 0);
+  analogWrite(lifting_pwm_pin, 0);
 
   MotorStopping();
 }
@@ -380,7 +485,11 @@ void loop() {
   motor_Speed = 120;    //for dpad movement
   calYawAngle();
   Input = yaw_angle;
-  myPID.Compute();
+  // myPID.Compute();
+    Serial2.print(Output);
+    Serial2.println(" ");
+  // Serial2.print(yaw_angle);
+  //   Serial2.println(" ");
   /*#ifdef PIDTUNING
    Serial.println(yaw_angle);
    Serial.print(",");
