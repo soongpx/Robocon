@@ -2,17 +2,30 @@
 
 #define MotorStopping SetPWM(0)
 
-extern "C" void SetPWM(int PWM_Value);
+#ifdef __cplusplus
+extern "C"
+#endif  
+void SetPWM(int PWM_Value);
 
 #ifdef __cplusplus
 extern "C"
 #endif 
-{
-  void MoveFront(int pwm);
-  extern "C" void MoveBack(int  pwm);
-  extern "C" void Leftward(int pwm);
-  extern "C" void MoveRight(int pwm);
-}
+void MoveFront(int pwm);
+
+#ifdef __cplusplus
+extern "C"
+#endif 
+void MoveBack(int  pwm);
+
+#ifdef __cplusplus
+extern "C"
+#endif 
+void Leftward(int pwm);
+
+#ifdef __cplusplus
+extern "C"
+#endif 
+void MoveRight(int pwm);
 
 #ifdef __cplusplus
 extern "C"
@@ -22,7 +35,9 @@ uint8_t Basic_Function_Counter;
 #ifdef __cplusplus
 extern "C"
 #endif
-{
-  void SerialPrintStringln(String Text);
-  void SerialPrintString(String Text);
-}
+void SerialPrintStringln(char* Text);
+
+#ifdef __cplusplus
+extern "C"
+#endif
+void SerialPrintString(char* Text);

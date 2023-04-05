@@ -13,14 +13,14 @@
 #include "Variable.h"
 //USB Set UP
 
-extern "C" void SerialPrintStringln(String Text)    // Sharing out Serial.println to other c program code
+extern "C" void SerialPrintStringln(char* Text)    // Sharing out Serial.println to other c program code
 {
-  Serial.println(Text);
+  Serial.println(String(Text));
 }
 
-extern "C" void SerialPrintString(String Text)    // Sharing out Serial.println to other c program code
+extern "C" void SerialPrintString(char* Text)    // Sharing out Serial.println to other c program code
 {
-  Serial.print(Text);
+  Serial.print(String(Text));
 }
 
 void DebugMessageTaskCode()

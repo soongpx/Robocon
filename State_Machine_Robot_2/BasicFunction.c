@@ -1,6 +1,7 @@
 #include "stdint.h"
 #include "ProgramConstant.h"
 #include "arduino.h"
+#include "BasicFunction.h"
 
 //Locomotion
 uint8_t Basic_Function_Counter = 0;
