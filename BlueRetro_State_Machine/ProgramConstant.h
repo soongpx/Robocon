@@ -7,6 +7,8 @@
 #define dir_2 1 //upper right direction
 #define dir_3 2 //lower left direction
 #define dir_4 3 //lower right direction
+#define stepPin 6 //Stepper step pin
+#define dirPin 7 //Stepper direction pin
 #define motor_speed 120
 #define sampletime 0 //sample time for PID in ms
 

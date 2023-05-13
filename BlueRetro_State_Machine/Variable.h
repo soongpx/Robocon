@@ -1,4 +1,5 @@
 PS2X ps2x;
+AccelStepper Stepper1(AccelStepper::DRIVER, stepPin, dirPin);
 
 //++++++++++++++++++++++++++++++++++++++ TimedAction Threads +++++++++++++++++++++++++++++++++++++++//
 void InputTaskCode();
@@ -14,20 +15,20 @@ TimedAction PS4_Repeat_Init_Task = TimedAction(1000, PS4_Repeat_Init_Code);
 TimedAction DebugMessageTask = TimedAction(1, DebugMessageTaskCode);
 String DebugMessage = "";
 
-bool USB_Detected = false;
-bool UP_Pressed = false;
-bool RIGHT_Pressed = false;
-bool DOWN_Pressed = false;
-bool LEFT_Pressed = false;
-bool L1_Pressed = false;
-bool R1_Pressed = false;
-bool L2_Pressed = false;
-bool R2_Pressed = false;
-bool SQUARE_Pressed = false;
-bool CIRCLE_Pressed = false;
-bool TRIANGLE_Pressed = false;
-bool CROSS_Pressed = false;
-bool START_Pressed   =   false; 
+bool USB_Detected      = false;
+bool UP_Pressed        = false;
+bool RIGHT_Pressed     = false;
+bool DOWN_Pressed      = false;
+bool LEFT_Pressed      = false;
+bool L1_Pressed        = false;
+bool R1_Pressed        = false;
+bool L2_Pressed        = false;
+bool R2_Pressed        = false;
+bool SQUARE_Pressed    = false;
+bool CIRCLE_Pressed    = false;
+bool TRIANGLE_Pressed  = false;
+bool CROSS_Pressed     = false;
+bool START_Pressed     = false; 
 
 //++++++++++++++++++++++++++++++++++++++ Program State +++++++++++++++++++++++++++++++++++++++//
 uint8_t OperatingState;
@@ -40,13 +41,13 @@ byte type = 0;
 byte vibrate = 0;
 
 //Locomotion
-int16_t ForwardSpeed =-1;
-int16_t BackwardSpeed =-1;
-int16_t LeftSpeed =-1;
-int16_t RightSpeed =-1;
-int16_t RotateLeftSpeed =-1;
-int16_t RotateRightSpeed =-1;
-int ramping_counter = 0;
+int16_t ForwardSpeed      =-1;
+int16_t BackwardSpeed     =-1;
+int16_t LeftSpeed         =-1;
+int16_t RightSpeed        =-1;
+int16_t RotateLeftSpeed   =-1;
+int16_t RotateRightSpeed  =-1;
+int ramping_counter       = 0;
 
 //IMU
 unsigned char Re_buf[11], counter = 0;
@@ -57,3 +58,7 @@ double Kp = 3.05, Ki = 0, Kd = 0.5;
 double Input, Output,setpoint;
 double yaw_angle;
 int suss,fail;
+
+//Stepper
+bool cycle_finish = 0; 
+int stepper_distance = 1000; //Should be modified according to mechanism

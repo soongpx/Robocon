@@ -2,6 +2,7 @@
 //PS4
 #include <PS2X_lib.h>  
 #include <TimedAction.h>
+#include <AccelStepper.h>
 //PID
 #include <PID_v1.h>
 #include "ProgramConstant.h"
@@ -67,7 +68,7 @@ void InputTaskCode()
   CIRCLE_Pressed    = ps2x.Button(PSB_RED)?          true:CIRCLE_Pressed;
   TRIANGLE_Pressed  = ps2x.Button(PSB_GREEN)?        true:TRIANGLE_Pressed;
   CROSS_Pressed     = ps2x.Button(PSB_BLUE)?         true:CROSS_Pressed;
-  START_Pressed   =   ps2x.Button(PSB_START)?        true:START_Pressed;
+  START_Pressed     = ps2x.Button(PSB_START)?        true:START_Pressed;
   // Scan IMU Reading from serial
   calYawAngle();
   Input = yaw_angle;
@@ -86,7 +87,7 @@ void ClearButtonStatus()
   CIRCLE_Pressed    = false;
   TRIANGLE_Pressed  = false;
   CROSS_Pressed     = false;
-  START_Pressed   =   false;  
+  START_Pressed     = false;  
 }
 void ProcessTaskCode()
 {
@@ -162,7 +163,14 @@ void ProcessTaskCode()
       break;
       
     case CircleMove:
-      if(CROSS_Pressed) 
+      if (Stepper1.distanceToGo() == 0){
+        Stepper1.moveTo(-Stepper1.currentPosition());
+        cycle_finish = 1;
+      }
+      else   
+        Stepper1.moveTo(stepper_distance);
+      Stepper1.run(); //Let stepper to move the ring up to flywheel and go back to initial position and end loop directly
+      if(cycle_finish) 
       {
         // Exit Circle Move Operation 
         OperatingState = CheckActionToDo;
@@ -494,7 +502,7 @@ void resetYawAngle() {
   Serial1.write(0x52);
 }
 
-void IMU_PID_Setup_Code()
+void IMU_PID_Stepper_Setup_Code()
 {
   //IMU
   Serial1.begin(115200);
@@ -511,6 +519,10 @@ void IMU_PID_Setup_Code()
   DDRA = B00001111;
   PORTA = B00000000;
   MotorStopping();
+
+  //Stepper
+  Stepper1.setMaxSpeed(150);
+  Stepper1.setAcceleration(50);
 }
 
 
@@ -524,7 +536,7 @@ void setup()
                                     // When Debugging, developer can point to any value of interest according to test case
   Sync_Basic_Task();
   PS4_Repeat_Init_Code(); // Attempt Scan for USB Host Repeatedly
-  IMU_PID_Setup_Code();   // Enable IMU(z-axis) & PID
+  IMU_PID_Stepper_Setup_Code();   // Enable IMU(z-axis) & PID
   InputTask.enable();     // Enable Input Task to be monitored
   ProcessTask.enable();   // Enable Process Task to be monitored
   OutputTask.enable();    // Enable Output Task to be monitored
