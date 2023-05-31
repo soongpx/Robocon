@@ -1,8 +1,8 @@
 #include <AccelStepper.h>
 
 PS2X ps2x;
-AccelStepper stepper1(AccelStepper::FULL4WIRE, step1Pin, dir1Pin, 8, 9);
-AccelStepper stepper2(AccelStepper::FULL4WIRE, step2Pin, dir2Pin, 12, 13);
+AccelStepper stepper1(1, step1Pin, dir1Pin);
+AccelStepper stepper2(1, step2Pin, dir2Pin);
  
 
 //++++++++++++++++++++++++++++++++++++++ TimedAction Threads +++++++++++++++++++++++++++++++++++++++//
@@ -19,6 +19,19 @@ TimedAction PS4_Repeat_Init_Task = TimedAction(1000, PS4_Repeat_Init_Code);
 TimedAction DebugMessageTask = TimedAction(1, DebugMessageTaskCode);
 String DebugMessage = "";
 
+int UP         = 0;
+int RIGHT      = 0;
+int DOWN       = 0;
+int LEFT       = 0;
+int L1         = 0;
+int R1         = 0;
+int L2         = 0;
+int R2         = 0;
+int SQUARE     = 0;
+int CIRCLE     = 0;
+int TRIANGLE   = 0;
+int CROSS      = 0;
+
 bool USB_Detected      = false;
 bool UP_Pressed        = false;
 bool RIGHT_Pressed     = false;
@@ -32,8 +45,8 @@ bool SQUARE_Pressed    = false;
 bool CIRCLE_Pressed    = false;
 bool TRIANGLE_Pressed  = false;
 bool CROSS_Pressed     = false;
-bool START_Pressed     = false; 
 
+bool prev_tri = 0;
 //++++++++++++++++++++++++++++++++++++++ Program State +++++++++++++++++++++++++++++++++++++++//
 uint8_t OperatingState;
 uint8_t LocoState;
@@ -56,7 +69,7 @@ int16_t RightSpeed        =-1;
 int16_t RotateLeftSpeed   =-1;
 int16_t RotateRightSpeed  =-1;
 int ramping_counter       = 0;
-bool Stop_Loco = 0;
+bool Stop_Loco            = 0;
 
 //Mechanism
 bool tilt_up = 0;
@@ -80,6 +93,6 @@ int suss,fail;
 
 //Stepper
 bool cycle_finish = 0; 
-int distance1 = 1000; // Desired stepper distance up to
-int distance2 = -500; // Desired stepper distance down
+int distance1 = 100000; // Desired stepper distance up to
+int distance2 = -100000; // Desired stepper distance down
 int pos;

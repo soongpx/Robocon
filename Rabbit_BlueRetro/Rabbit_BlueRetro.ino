@@ -16,7 +16,7 @@ void DebugMessageTaskCode()
 {
   if(DebugMessage != "")
   {
-    Serial.print(DebugMessage);
+    Serial.println(DebugMessage);
     DebugMessage = "";          // Clear away the message so that serial terminal wont full of repeated useless message
   }
 }
@@ -67,7 +67,6 @@ void InputTaskCode()
   CIRCLE_Pressed    = ps2x.Button(PSB_RED)?          true:CIRCLE_Pressed;
   TRIANGLE_Pressed  = ps2x.Button(PSB_GREEN)?        true:TRIANGLE_Pressed;
   CROSS_Pressed     = ps2x.Button(PSB_BLUE)?         true:CROSS_Pressed;
-  START_Pressed     = ps2x.Button(PSB_START)?        true:START_Pressed;
   // Scan IMU Reading from serial
   calYawAngle();
   Input = yaw_angle;
@@ -85,8 +84,18 @@ void ClearButtonStatus()
   SQUARE_Pressed    = false;
   CIRCLE_Pressed    = false;
   TRIANGLE_Pressed  = false;
-  CROSS_Pressed     = false;
-  START_Pressed     = false;  
+  CROSS_Pressed     = false;int UP         = 0;
+  RIGHT      = 0;
+  DOWN       = 0;
+  LEFT       = 0;
+  L1         = 0;
+  R1         = 0;
+  L2         = 0;
+  R2         = 0;
+  SQUARE     = 0;
+  CIRCLE     = 0;
+  TRIANGLE   = 0;
+  CROSS      = 0;
 }
 void ProcessTaskCode()
 {
@@ -162,46 +171,54 @@ void ProcessTaskCode()
       break;
       
     case CircleMove:
-      if(SQUARE_Pressed) 
+      if(TRIANGLE_Pressed) 
       {
-        Serial.println(stepper1.distanceToGo());
-        if ((stepper1.distanceToGo() == 0 && stepper2.distanceToGo() == 0) || pos != 2){
-          stepper1.move(distance2);
-          stepper2.move(distance2);
-          pos = 2;
-        }
-      } else if (TRIANGLE_Pressed)
-      {
-        if ((stepper1.distanceToGo() == 0 && stepper2.distanceToGo() == 0) || pos != 1){
-          stepper1.move(distance1);
-          stepper2.move(distance1);
-          pos = 1;
-        }
-      }        
-      if (stepper1.distanceToGo() != 0){
+        stepper1.moveTo(distance1);
+        stepper2.moveTo(distance1);
         Stepper1Move = 1;
-      } else{
-        Stepper1Move = 0;
-      }
-      if (stepper2.distanceToGo() != 0){
         Stepper2Move = 1;
-      } else{
+        prev_tri = 1;
+      } else if (SQUARE_Pressed)
+      {
+        if (!prev_tri){
+          stepper1.moveTo(distance2);
+          stepper2.moveTo(distance2);
+          Stepper1Move = 1;
+          Stepper2Move = 1;
+        } else{
+          stepper1.moveTo(distance1);
+          stepper2.moveTo(distance1);
+          Stepper1Move = 1;
+          Stepper2Move = 1;
+          prev_tri = 0;
+        }
+      } else if (CIRCLE_Pressed){    
+        Stepper1Move = 0;
         Stepper2Move = 0;
+        prev_tri = 0;
       }
+
       if (DOWN_Pressed){
         keep = 1;
       } else {
         keep = 0;
       }
+
       if(CROSS_Pressed) 
       {
-        keep = 0;
-        Stepper1Move = 0;
-        Stepper2Move = 0;
-        stepper1.move(0);
-        stepper2.move(0);
-        // Exit Circle Move Operation
-        OperatingState = CheckActionToDo;
+        if (!prev_tri){
+          keep = 0;
+          Stepper1Move = 0;
+          Stepper2Move = 0;
+          // Exit Circle Move Operation
+          OperatingState = CheckActionToDo;
+        } else{
+          stepper1.moveTo(distance1);
+          stepper2.moveTo(distance1);
+          Stepper1Move = 1;
+          Stepper2Move = 1;
+          prev_tri = 0;
+        }
       }
       ClearButtonStatus();
       break;
@@ -210,12 +227,10 @@ void ProcessTaskCode()
       if (UP_Pressed){
         tilt_up = 1;
         tilt_down = 0;
-        Serial.println("up");
         ClearButtonStatus();      
       } else if (DOWN_Pressed){
         tilt_up = 0;
         tilt_down = 1;
-        Serial.println("down");
         ClearButtonStatus();      
       } else{
         tilt_up = 0;
@@ -231,7 +246,6 @@ void ProcessTaskCode()
 
       if (LEFT_Pressed){
         shoot = 1;
-        Serial.println("Shoot");
         ClearButtonStatus();    
       } else if (RIGHT_Pressed){
         shoot = 0;
@@ -267,7 +281,7 @@ void ProcessTaskCode()
       myPID.Compute();
       Output = 0;         // PID output is not used
       ramping_counter++;
-      if (ramping_counter == 10){     //check ramping_counter (max speed x ramping counter x function time (10ms)
+      if (ramping_counter == 1){     //check time to max speed (max speed x ramping counter x function time (10ms))
         ForwardSpeed++;  
         ramping_counter = 0;
       }    
@@ -289,7 +303,7 @@ void ProcessTaskCode()
       myPID.Compute();
       Output = 0;         // PID output is not used
       ramping_counter++;
-      if (ramping_counter == 10){    //check ramping_counter (max speed x ramping counter x function time (10ms)
+      if (ramping_counter == 1){    //check ramping_counter (max speed x ramping counter x function time (10ms)
         BackwardSpeed++;  
         ramping_counter = 0;
       }  
@@ -311,7 +325,7 @@ void ProcessTaskCode()
       myPID.Compute();
       Output = 0;         // PID output is not used
       ramping_counter++;
-      if (ramping_counter == 10){     //check ramping_counter (max speed x ramping counter x function time (10ms)
+      if (ramping_counter == 1){     //check ramping_counter (max speed x ramping counter x function time (10ms)
         LeftSpeed++;  
         ramping_counter = 0;
       }    
@@ -333,7 +347,7 @@ void ProcessTaskCode()
       myPID.Compute();
       Output = 0;         // PID output is not used
       ramping_counter++;
-      if (ramping_counter == 10){     //check ramping_counter (max speed x ramping counter x function time (10ms)
+      if (ramping_counter == 1){     //check ramping_counter (max speed x ramping counter x function time (10ms)
         RightSpeed++;  
         ramping_counter = 0;
       }     
@@ -353,7 +367,7 @@ void ProcessTaskCode()
         OperatingState = CheckActionToDo;
       }      
       ramping_counter++;
-      if (ramping_counter == 10){     //check ramping_counter (max speed x ramping counter x function time (10ms)
+      if (ramping_counter == 1){     //check ramping_counter (max speed x ramping counter x function time (10ms)
         RotateLeftSpeed++;  
         ramping_counter = 0;
       }    
@@ -375,7 +389,7 @@ void ProcessTaskCode()
         OperatingState = CheckActionToDo;
       }
       ramping_counter++;
-      if (ramping_counter == 10){     //check ramping_counter (max speed x ramping counter x function time (10ms)
+      if (ramping_counter == 1){     //check ramping_counter (max speed x ramping counter x function time (10ms)
         RotateRightSpeed++;  
         ramping_counter = 0;
       }    
@@ -416,9 +430,7 @@ void OutputTaskCode()
   else                              Retract(); 
 
   if(rotate)                        Start_Flywheel_Front();
-  else                              Stop_Flywheel();
-
-  if(keep)                          Start_Flywheel_Back();
+  else if(keep)                     Start_Flywheel_Back();
   else                              Stop_Flywheel();
 
 
@@ -517,10 +529,10 @@ void RotateRight(int pwm)
 
 void MotorStopping()
 {
-    analogWrite(wheel1, 0);
-    analogWrite(wheel2, 0);
-    analogWrite(wheel3, 0);
-    analogWrite(wheel4, 0);
+  analogWrite(wheel1, 0);
+  analogWrite(wheel2, 0);
+  analogWrite(wheel3, 0);
+  analogWrite(wheel4, 0);
 }
 
 //Mechanism
@@ -541,28 +553,32 @@ void Lift(){
 }
 
 void Tilt_Up(){
-  PORTA |= (1 << tilt_dir);
+  Serial.println("Tilt Up");
+  digitalWrite(tilt_dir, 1);
   analogWrite(tilt_pwm, 255);
 }
 
 void Tilt_Down(){
-  PORTA &= ~(1 << tilt_dir);
-  analogWrite(tilt_pwm, 255);
+  Serial.println("Tilt Down");
+  digitalWrite(tilt_dir, 0);
+  analogWrite(44, 255);
 }
 
 void Start_Flywheel_Front(){
-  PORTA |= (1 << flywheel1_dir);
-  analogWrite(flywheel1_pwm, 255);
-  PORTA &= ~(1 << flywheel2_dir);
+  Serial.println("Start Flywheel");
+  digitalWrite(flywheel2_dir, 0);
+  delayMicroseconds(100);
+  digitalWrite(flywheel1_dir, 1);
+  analogWrite(13, 255);
   analogWrite(flywheel2_pwm, 255);
 }
 
 void Start_Flywheel_Back(){
-  PORTA &= ~(1 << flywheel1_dir);
+  digitalWrite(flywheel1_dir, 0);
+  delayMicroseconds(100);
+  digitalWrite(flywheel2_dir, 1);
   analogWrite(flywheel1_pwm, 100);
-  PORTA |= (1 << flywheel2_dir);
   analogWrite(flywheel2_pwm, 100);
-  Serial.println("rotate");
 }
 
 void Stop_Flywheel(){
@@ -576,16 +592,18 @@ void Stop_Tilting()
 }
 
 void Stop_Stepper(){
+  stepper1.setCurrentPosition(0);
+  stepper2.setCurrentPosition(0);
   stepper1.stop();
   stepper2.stop();
 }
 
 void Shoot(){
-  PORTA &= ~(1 << pneumatic);
+  digitalWrite(pneumatic, 0);
 }
 
 void Retract(){
-  PORTA |= (1 << pneumatic);
+  digitalWrite(pneumatic, 1);
 }
 
 //IMU (added by PX)
@@ -667,11 +685,17 @@ void IMU_PID_Stepper_Setup_Code()
   myPID.SetOutputLimits(-25500, 25500);
   DDRA = B11111111;
   PORTA = B00000000;
+  pinMode(tilt_pwm, OUTPUT);
+  pinMode(tilt_dir, OUTPUT);
+  pinMode(flywheel1_dir, OUTPUT);
+  pinMode(flywheel2_dir, OUTPUT);
   MotorStopping();
 
   //Stepper
-  stepper1.setSpeed(200);
-  stepper2.setSpeed(200);
+  stepper1.setMaxSpeed(600);    
+  stepper1.setAcceleration(180);
+  stepper2.setMaxSpeed(300);   
+  stepper2.setAcceleration(60);
 }
 
 
