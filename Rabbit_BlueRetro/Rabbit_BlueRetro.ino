@@ -173,6 +173,10 @@ void ProcessTaskCode()
     case CircleMove:
       if(TRIANGLE_Pressed) 
       {
+//        if (stepper1.distanceToGo() == 0) // if Reach absolute distance desired, what to do?
+//        if (stepper2.distanceToGo() == 0 // if Reach absolute distance desired, what to do?
+//        if (stepper1.isRunning())        // if Stepper Motor 1 is running, what to do?
+//        if (stepper2.isRunning())        // if Stepper Motor 2 is running, what to do?
         stepper1.moveTo(distance1);
         stepper2.moveTo(distance1);
         Stepper1Move = 1;
@@ -419,8 +423,6 @@ void OutputTaskCode()
   else if(RotateRightSpeed > 0)     RotateRight(RotateRightSpeed); 
   else                              MotorStopping();
 
-  if(Stepper1Move || Stepper2Move)  Lift();    
-  else                              Stop_Stepper();
   
   if(tilt_up)                       Tilt_Up();  
   else if(tilt_down)                Tilt_Down();  
@@ -436,6 +438,11 @@ void OutputTaskCode()
 
 }
 
+void StepperControlCode()
+{
+  if(Stepper1Move || Stepper2Move)  Lift();    
+  else                              Stop_Stepper();
+}
 //Locomotion
 int cap200PWMValue(int pwm){
   if (pwm > 200){
@@ -538,15 +545,27 @@ void MotorStopping()
 //Mechanism
 void Lift(){
   if (Stepper1Move && Stepper2Move){
-    stepper1.run();
-    stepper2.run();
+    StepperAlternator = (StepperAlternator + 1) % 2;
+    if (StepperAlternator == 0)   // This code is to even up stepper 1 and stepper 2 trigger sequence
+    {
+      stepper1.run();
+      stepper2.run();
+    }
+    else
+    {
+      stepper2.run();
+      stepper1.run();
+    }
   } else if (Stepper1Move){
+    StepperAlternator = 0;
     stepper1.run();
     stepper2.stop();
   } else if (Stepper2Move){
+    StepperAlternator = 0;
     stepper2.run();
     stepper1.stop();
   } else{
+    StepperAlternator = 0;
     stepper1.stop();
     stepper2.stop();
   }
@@ -673,9 +692,10 @@ void IMU_PID_Stepper_Setup_Code()
 {
   //IMU
   Serial1.begin(115200);
-  Serial1.write(0xFF);
-  Serial1.write(0xAA);
-  Serial1.write(0x52); //0xFF 0xAA 0x52 is command for initializing angle in z Direction =0
+  Serial1.write("\xFF\xAA\x52")  ; //0xFF 0xAA 0x52 is command for initializing angle in z Direction =0
+//  Serial1.write(0xFF);
+//  Serial1.write(0xAA);
+//  Serial1.write(0x52); 
   
   //PID
   Input = yaw_angle;
@@ -692,10 +712,15 @@ void IMU_PID_Stepper_Setup_Code()
   MotorStopping();
 
   //Stepper
-  stepper1.setMaxSpeed(600);    
-  stepper1.setAcceleration(180);
-  stepper2.setMaxSpeed(300);   
-  stepper2.setAcceleration(60);
+//  stepper1.setMaxSpeed(600);    
+//  stepper1.setAcceleration(180);
+//  stepper2.setMaxSpeed(300);   
+//  stepper2.setAcceleration(60);
+  // Since StepperAlternator implemented, try use stepper motor max speed and acceleration with same value
+  stepper1.setMaxSpeed(400);      // if motor driver microstep is 1, motor 200 step / rev, then motor speed is 2 rev/s
+  stepper1.setAcceleration(200);  // 2 seconds to reach max speed
+  stepper2.setMaxSpeed(400);      // if motor driver microstep is 1, motor 200 step / rev, then motor speed is 2 rev/s
+  stepper2.setAcceleration(200);  // 2 seconds to reach max speed
 }
 
 
@@ -710,11 +735,19 @@ void setup()
   Sync_Basic_Task();
   PS4_Repeat_Init_Code(); // Attempt Scan for USB Host Repeatedly
   IMU_PID_Stepper_Setup_Code();   // Enable IMU(z-axis) & PID
+  StepperControlTask.reset();
+  DebugMessageTask.reset();  
+  InputTask.reset();     // Set InputTask Time stamp to current millis
+  delay(3);
+  ProcessTask.reset();   // Process Task Execute after 3ms InputTask is execute
+  delay(3);
+  OutputTask.reset();    // Output Task Execute after 3ms Process Task is execute
+  delay(3);
   InputTask.enable();     // Enable Input Task to be monitored
   ProcessTask.enable();   // Enable Process Task to be monitored
   OutputTask.enable();    // Enable Output Task to be monitored
   DebugMessageTask.enable();  
-
+  StepperControlTask.enable();
   
 }
 
@@ -726,6 +759,7 @@ void loop()
     InputTask.check();              // Input Task fire threads every 10ms (Refer to Variable.h)
     ProcessTask.check();            // Process Task fire threads every 10ms (Refer to Variable.h)
     OutputTask.check();             // Output Task fire threads every 10ms (Refer to Variable.h)
+    StepperControlTask.check();     // Stepper Control Need to be updated faster
   }
   else
   {
@@ -738,6 +772,7 @@ void Sync_Basic_Task()
 {
 // The following code is purposely to control when each task is being execute  
 // Without the following code, program can still run, but programmer have no idea which Task will be execute first.  
+    StepperControlTask.reset();     // Stepper Control Need to be updated faster
     InputTask.reset();   // Input Task Run from 10ms from this point onwards
     delay(3);            // Process Task Shall Execute 3ms after Input Task
     ProcessTask.reset(); // Process Task Run from 10ms from this point onwards

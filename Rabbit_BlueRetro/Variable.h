@@ -11,10 +11,11 @@ void ProcessTaskCode();
 void OutputTaskCode();
 void DebugMessageTaskCode();
 void PS4_Repeat_Init_Code();
-
+void StepperControlCode();
 TimedAction InputTask = TimedAction(10, InputTaskCode); // fire threads every 10ms
 TimedAction ProcessTask = TimedAction(10, ProcessTaskCode);
 TimedAction OutputTask = TimedAction(10, OutputTaskCode);
+TimedAction StepperControlTask = TimedAction(1, StepperControlCode);
 TimedAction PS4_Repeat_Init_Task = TimedAction(1000, PS4_Repeat_Init_Code);
 TimedAction DebugMessageTask = TimedAction(1, DebugMessageTaskCode);
 String DebugMessage = "";
@@ -74,6 +75,7 @@ bool Stop_Loco            = 0;
 //Mechanism
 bool tilt_up = 0;
 bool tilt_down = 0;
+uint8_t StepperAlternator = 0;
 bool Stepper1Move = 0;
 bool Stepper2Move = 0;
 bool rotate = 0;
@@ -93,6 +95,9 @@ int suss,fail;
 
 //Stepper
 bool cycle_finish = 0; 
-int distance1 = 100000; // Desired stepper distance up to
-int distance2 = -100000; // Desired stepper distance down
+//int distance1 = 100000;  // You Should Never try to use vague variable type inside MCU coding !!!!!!!!!!!!!!!
+//int distance2 = -100000; // You Should Never try to use vague variable type inside MCU coding !!!!!!!!!!!!!!!
+//void    moveTo(long absolute) // moveTo function prototype
+int32_t distance1 = -31072; // This value is tested with arduino serial.println and get this funny value
+int32_t distance2 = 31072;  // This value is tested with arduino serial.println and get this funny value
 int pos;
