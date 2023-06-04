@@ -47,6 +47,9 @@ bool CIRCLE_Pressed    = false;
 bool TRIANGLE_Pressed  = false;
 bool CROSS_Pressed     = false;
 
+bool prev_up = 0;
+bool prev_down = 0;
+bool prev_right = 0;
 bool prev_tri = 0;
 //++++++++++++++++++++++++++++++++++++++ Program State +++++++++++++++++++++++++++++++++++++++//
 uint8_t OperatingState;
