@@ -12,7 +12,7 @@ void setup()
 {
   Serial.begin(115200);
   SPI.begin();
-  SPI.beginTransaction(SPISettings(100000, LSBFIRST, SPI_MODE3)); //10 Microseconds per bit
+  SPI.beginTransaction(SPISettings(200000, LSBFIRST, SPI_MODE3)); //5 Microseconds per bit
   pinMode(SPI_MISO, INPUT_PULLUP);
   pinMode(SlaveAck, INPUT_PULLUP);
   pinMode(SPI_CLK, OUTPUT); //configure ports
@@ -25,15 +25,15 @@ void setup()
 void loop() {
   uint8_t i = 0;
   digitalWrite(SlaveSelect, LOW);   // Set Attention Line Low at Start of Packet
-  while(i < BufferSize)
+  while(i < BufferSize)             // Block for 450 Microseconds ( (40 + 10) x 9)
   {
     SPI_Packet[i] = SPI.transfer(ReadAllData[i]);
-    delayMicroseconds(10);          //Delay 10 Microseconds for 1 bit spacing
+    delayMicroseconds(10);          //Delay 10 Microseconds (Seems Compulsory)
     i = i + 1;
-  } 
+  } // Please take note PS2 data retrieval takes 450 microseconds , may intefere Stepper motor control timing.
   digitalWrite(SlaveSelect, HIGH);  // Set Attention Line High after End of Packet
   
-  for(i = 0; i < BufferSize; i++)
+  for(i = 0; i < BufferSize; i++) 
   {
     //Serial.print(SPI_Packet[i],HEX);      // Not use due to variable Print size
     Serial.print((SPI_Packet[i] & 0xF0) >> 4, HEX);
