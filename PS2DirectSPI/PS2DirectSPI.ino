@@ -4,15 +4,15 @@
 #define SPI_MOSI 51
 #define SlaveSelect 53
 #define SlaveAck 2
-#define BufferSize 11
+#define BufferSize 9
 uint8_t SPI_Packet[BufferSize]={0};
-static byte ReadAllData[]={0x01,0x42,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
+static byte ReadAllData[]={0x01,0x42,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
 
 void setup() 
 {
   Serial.begin(115200);
   SPI.begin();
-  SPI.beginTransaction(SPISettings(100000, LSBFIRST, SPI_MODE3));
+  SPI.beginTransaction(SPISettings(100000, LSBFIRST, SPI_MODE3)); //10 Microseconds per bit
   pinMode(SPI_MISO, INPUT_PULLUP);
   pinMode(SlaveAck, INPUT_PULLUP);
   pinMode(SPI_CLK, OUTPUT); //configure ports
@@ -25,9 +25,10 @@ void setup()
 void loop() {
   uint8_t i = 0;
   digitalWrite(SlaveSelect, LOW);   // Set Attention Line Low at Start of Packet
-  while(i < 11)
+  while(i < BufferSize)
   {
     SPI_Packet[i] = SPI.transfer(ReadAllData[i]);
+    delayMicroseconds(10);          //Delay 10 Microseconds for 1 bit spacing
     i = i + 1;
   } 
   digitalWrite(SlaveSelect, HIGH);  // Set Attention Line High after End of Packet
