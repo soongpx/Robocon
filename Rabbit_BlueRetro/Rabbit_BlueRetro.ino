@@ -177,7 +177,7 @@ void ProcessTaskCode()
 //        if (stepper2.distanceToGo() == 0 // if Reach absolute distance desired, what to do?
 //        if (stepper1.isRunning())        // if Stepper Motor 1 is running, what to do?
 //        if (stepper2.isRunning())        // if Stepper Motor 2 is running, what to do?
-        stepper1.moveTo(distance1);
+        stepper1.moveTo(-distance1);
         stepper2.moveTo(distance1);
         Stepper1Move = 1;
         Stepper2Move = 1;
@@ -185,12 +185,12 @@ void ProcessTaskCode()
       } else if (SQUARE_Pressed)
       {
         if (!prev_tri){
-          stepper1.moveTo(distance2);
+          stepper1.moveTo(-distance2);
           stepper2.moveTo(distance2);
           Stepper1Move = 1;
           Stepper2Move = 1;
         } else{
-          stepper1.moveTo(distance1);
+          stepper1.moveTo(-distance1);
           stepper2.moveTo(distance1);
           Stepper1Move = 1;
           Stepper2Move = 1;
@@ -202,22 +202,83 @@ void ProcessTaskCode()
         prev_tri = 0;
       }
 
-      if (DOWN_Pressed){
-        keep = 1;
-      } else {
+      if (RIGHT_Pressed){
+        if (prev_up){
+          tilt_up = 1;
+          prev_up = 0;
+        } else if (prev_down){
+          tilt_down = 1;
+          prev_down = 0;
+        } else{                
+          stepper1.moveTo(-distance1);
+          stepper2.moveTo(distance1);
+          Stepper1Move = 1;
+          Stepper2Move = 1;
+          keep = 1;
+          prev_right = 1;
+        }
+      } else if (UP_Pressed){
+        if (prev_right){
+          stepper1.moveTo(-distance1);
+          stepper2.moveTo(distance1);
+          Stepper1Move = 1;
+          Stepper2Move = 1;
+          keep = 1;
+          prev_right = 0;
+        } else if (prev_down){
+          tilt_down = 1;
+          prev_down = 0;
+        } else{
+          Stepper1Move = 0;
+          Stepper2Move = 0;
+          tilt_up = 1;
+          prev_up = 1;
+        }
+      }else if(DOWN_Pressed){
+        if (prev_up){
+          tilt_up = 1;
+          prev_up = 0;
+        } else if (prev_right){
+          stepper1.moveTo(-distance1);
+          stepper2.moveTo(distance1);
+          Stepper1Move = 1;
+          Stepper2Move = 1;
+          keep = 1;
+          prev_down = 0;
+        } else{
+          Stepper1Move = 0;
+          Stepper2Move = 0;
+          tilt_down = 1;
+          prev_down = 1;
+        }
+      }else if(CIRCLE_Pressed){
+        Stepper1Move = 0;
+        Stepper2Move = 0;
+        tilt_up = 0;
+        tilt_down = 0;
         keep = 0;
+      }
+      else {
+        tilt_up = 0;
+        tilt_down = 0;
+        keep = 0;
+        prev_down = 0;
+        prev_up = 0;
+        prev_right = 0;
       }
 
       if(CROSS_Pressed) 
       {
         if (!prev_tri){
           keep = 0;
+          tilt_up = 0;
+          tilt_down = 0;
           Stepper1Move = 0;
           Stepper2Move = 0;
           // Exit Circle Move Operation
           OperatingState = CheckActionToDo;
         } else{
-          stepper1.moveTo(distance1);
+          stepper1.moveTo(-distance1);
           stepper2.moveTo(distance1);
           Stepper1Move = 1;
           Stepper2Move = 1;
@@ -375,7 +436,7 @@ void ProcessTaskCode()
         RotateLeftSpeed++;  
         ramping_counter = 0;
       }    
-      if (RotateLeftSpeed > motor_speed) RotateLeftSpeed = motor_speed; // Perform ramping by using counter (PX)
+      if (RotateLeftSpeed > motor_speed) RotateLeftSpeed = rotate_speed; // Perform ramping by using counter (PX)
       ForwardSpeed =-1;
       BackwardSpeed = -1;
       LeftSpeed = -1;
@@ -397,7 +458,7 @@ void ProcessTaskCode()
         RotateRightSpeed++;  
         ramping_counter = 0;
       }    
-      if (RotateRightSpeed > motor_speed) RotateRightSpeed = motor_speed; // Perform ramping by using counter (PX)
+      if (RotateRightSpeed > motor_speed) RotateRightSpeed = rotate_speed; // Perform ramping by using counter (PX)
       ForwardSpeed =-1;
       BackwardSpeed = -1;
       LeftSpeed =-1;
@@ -545,27 +606,16 @@ void MotorStopping()
 //Mechanism
 void Lift(){
   if (Stepper1Move && Stepper2Move){
-    StepperAlternator = (StepperAlternator + 1) % 2;
-    if (StepperAlternator == 0)   // This code is to even up stepper 1 and stepper 2 trigger sequence
-    {
-      stepper1.run();
-      stepper2.run();
-    }
-    else
-    {
-      stepper2.run();
-      stepper1.run();
-    }
+    Serial.println("Lift");
+    stepper1.run();
+    stepper2.run();
   } else if (Stepper1Move){
-    StepperAlternator = 0;
     stepper1.run();
     stepper2.stop();
   } else if (Stepper2Move){
-    StepperAlternator = 0;
     stepper2.run();
     stepper1.stop();
   } else{
-    StepperAlternator = 0;
     stepper1.stop();
     stepper2.stop();
   }
@@ -593,6 +643,7 @@ void Start_Flywheel_Front(){
 }
 
 void Start_Flywheel_Back(){
+  Serial.println("Back");
   digitalWrite(flywheel1_dir, 0);
   delayMicroseconds(100);
   digitalWrite(flywheel2_dir, 1);
@@ -717,10 +768,10 @@ void IMU_PID_Stepper_Setup_Code()
 //  stepper2.setMaxSpeed(300);   
 //  stepper2.setAcceleration(60);
   // Since StepperAlternator implemented, try use stepper motor max speed and acceleration with same value
-  stepper1.setMaxSpeed(400);      // if motor driver microstep is 1, motor 200 step / rev, then motor speed is 2 rev/s
-  stepper1.setAcceleration(200);  // 2 seconds to reach max speed
-  stepper2.setMaxSpeed(400);      // if motor driver microstep is 1, motor 200 step / rev, then motor speed is 2 rev/s
-  stepper2.setAcceleration(200);  // 2 seconds to reach max speed
+  stepper1.setMaxSpeed(2000);      // if motor driver microstep is 1, motor 200 step / rev, then motor speed is 2 rev/s
+  stepper1.setAcceleration(1000);  // 2 seconds to reach max speed
+  stepper2.setMaxSpeed(2000);      // if motor driver microstep is 1, motor 200 step / rev, then motor speed is 2 rev/s
+  stepper2.setAcceleration(1000);  // 2 seconds to reach max speed
 }
 
 
@@ -732,9 +783,9 @@ void setup()
   OperatingState = USB_Detect_Hold; // Set First State to wait user press Start button
   USB_Detected = false;
                                     // When Debugging, developer can point to any value of interest according to test case
+  IMU_PID_Stepper_Setup_Code();   // Enable IMU(z-axis) & PID
   Sync_Basic_Task();
   PS4_Repeat_Init_Code(); // Attempt Scan for USB Host Repeatedly
-  IMU_PID_Stepper_Setup_Code();   // Enable IMU(z-axis) & PID
   StepperControlTask.reset();
   DebugMessageTask.reset();  
   InputTask.reset();     // Set InputTask Time stamp to current millis
