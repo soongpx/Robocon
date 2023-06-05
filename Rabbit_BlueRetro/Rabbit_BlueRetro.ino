@@ -1,5 +1,5 @@
 //PS4
-#include <PS2X_lib.h>  
+#include <SPI.h>
 #include <TimedAction.h>
 //PID
 #include <PID_v1.h>
@@ -23,50 +23,53 @@ void DebugMessageTaskCode()
 
 
 void PS4_Repeat_Init_Code()
-{
-  error = ps2x.config_gamepad(52,51,53,50, true, true);   //GamePad(clock, command, attention, data, Pressures?, Rumble?) 
- //13,11,10,12 (Uno)
- //52,51,53,50 (Mega)
-  if(error == 0){
-    USB_Detected = true;
-    DebugMessage = F("Found Controller, configured successful");
-    PS4_Repeat_Init_Task.disable();          // It is ok to keep enable, it is just a flag only, not starting another thread 
-  }
-   
-  else if(error == 1){
+{  
+  SPI.begin();
+  SPI.beginTransaction(SPISettings(100000, LSBFIRST, SPI_MODE3)); //5 Microseconds per bit
+  pinMode(SPI_MISO, INPUT_PULLUP);
+  pinMode(SlaveAck, INPUT_PULLUP);
+  pinMode(SPI_CLK, OUTPUT); //configure ports
+  pinMode(SPI_MOSI, OUTPUT);
+  pinMode(SlaveSelect, OUTPUT);
+  digitalWrite(SlaveSelect, HIGH);
+  PS2_SPI_SEND(Enter_Config, 5);
+  PS2_SPI_SEND(Turn_ON_Analog_Mode, 9);
+  //  PS2_SPI_SEND(Maps_Motor,5);       // PS4 dont support this?
+  //  PS2_SPI_SEND(Turn_ON_Pressure,9); // This is useless for ps4
+  PS2_SPI_SEND(Exit_Config, 9);
+  PS2_SPI_SEND(ReadAllData, BufferSize);
+  if (SPI_Packet[2] != 0x5A){
     USB_Detected = false;
     DebugMessage = F("\nNo controller found, check wiring");
     // If error persists without having wiring problem, close the power source and on again
     PS4_Repeat_Init_Task.enable();          //  It is ok to keep enable, it is just a flag only, not starting another thread
-  }
-   
-  else if(error == 2){
-    USB_Detected = false;
-    DebugMessage = F("\nController found but not accepting commands.");
-    PS4_Repeat_Init_Task.enable();          //  It is ok to keep enable, it is just a flag only, not starting another thread
-  }
-   
-  else if(error == 3){
-    USB_Detected = false;
-    DebugMessage = F("\nController refusing to enter Pressures mode");
-    PS4_Repeat_Init_Task.enable();          //  It is ok to keep enable, it is just a flag only, not starting another thread
+  } else{
+    USB_Detected = true;
+    DebugMessage = F("Found Controller, configured successful");
+    PS4_Repeat_Init_Task.disable();          // It is ok to keep disable
   }
 }
 void InputTaskCode()
 {
-  ps2x.read_gamepad(false, vibrate);  //read controller and set large motor to spin at 'vibrate' speed
-  UP_Pressed        = ps2x.Button(PSB_PAD_UP)?       true:UP_Pressed;
-  RIGHT_Pressed     = ps2x.Button(PSB_PAD_RIGHT)?    true:RIGHT_Pressed;
-  DOWN_Pressed      = ps2x.Button(PSB_PAD_DOWN)?     true:DOWN_Pressed;
-  LEFT_Pressed      = ps2x.Button(PSB_PAD_LEFT)?     true:LEFT_Pressed;
-  L1_Pressed        = ps2x.Button(PSB_L1)?           true:L1_Pressed;
-  R1_Pressed        = ps2x.Button(PSB_R1)?           true:R1_Pressed;
-  L2_Pressed        = ps2x.Button(PSB_L2)?           true:L2_Pressed;
-  R2_Pressed        = ps2x.Button(PSB_R2)?           true:R2_Pressed;
-  SQUARE_Pressed    = ps2x.Button(PSB_PINK)?         true:SQUARE_Pressed;
-  CIRCLE_Pressed    = ps2x.Button(PSB_RED)?          true:CIRCLE_Pressed;
-  TRIANGLE_Pressed  = ps2x.Button(PSB_GREEN)?        true:TRIANGLE_Pressed;
-  CROSS_Pressed     = ps2x.Button(PSB_BLUE)?         true:CROSS_Pressed;
+  PS2_SPI_SEND(ReadAllData, BufferSize);    
+  if(SPI_Packet[3] ^ 0xFF) 
+    {
+      if (~SPI_Packet[3] & DPAD_UP) UP_Pressed = 1;
+      if (~SPI_Packet[3] & DPAD_DOWN) DOWN_Pressed = 1;
+      if (~SPI_Packet[3] & DPAD_LEFT) LEFT_Pressed = 1;
+      if (~SPI_Packet[3] & DPAD_RIGHT) RIGHT_Pressed = 1;
+    }
+  if(SPI_Packet[4] ^ 0xFF) 
+  {
+    if (~SPI_Packet[4] & L1_PRESSED) L1_Pressed = 1;
+    if (~SPI_Packet[4] & L2_PRESSED) L2_Pressed = 1;
+    if (~SPI_Packet[4] & R1_PRESSED) R1_Pressed = 1;
+    if (~SPI_Packet[4] & R2_PRESSED) R2_Pressed = 1;
+    if (~SPI_Packet[4] & GREEN_TRIANGLE_PRESSED) TRIANGLE_Pressed = 1;
+    if (~SPI_Packet[4] & RED_CIRCLE_PRESSED) CIRCLE_Pressed = 1;
+    if (~SPI_Packet[4] & BLUE_CROSS_PRESSED) CROSS_Pressed = 1;
+    if (~SPI_Packet[4] & PINK_SQUARE_PRESSED) SQUARE_Pressed = 1;
+  }
   // Scan IMU Reading from serial
   calYawAngle();
   Input = yaw_angle;
@@ -84,18 +87,7 @@ void ClearButtonStatus()
   SQUARE_Pressed    = false;
   CIRCLE_Pressed    = false;
   TRIANGLE_Pressed  = false;
-  CROSS_Pressed     = false;int UP         = 0;
-  RIGHT      = 0;
-  DOWN       = 0;
-  LEFT       = 0;
-  L1         = 0;
-  R1         = 0;
-  L2         = 0;
-  R2         = 0;
-  SQUARE     = 0;
-  CIRCLE     = 0;
-  TRIANGLE   = 0;
-  CROSS      = 0;
+  CROSS_Pressed     = false;
 }
 void ProcessTaskCode()
 {
@@ -436,7 +428,7 @@ void ProcessTaskCode()
         RotateLeftSpeed++;  
         ramping_counter = 0;
       }    
-      if (RotateLeftSpeed > motor_speed) RotateLeftSpeed = rotate_speed; // Perform ramping by using counter (PX)
+      if (RotateLeftSpeed > rotate_speed) RotateLeftSpeed = rotate_speed; // Perform ramping by using counter (PX)
       ForwardSpeed =-1;
       BackwardSpeed = -1;
       LeftSpeed = -1;
@@ -458,7 +450,7 @@ void ProcessTaskCode()
         RotateRightSpeed++;  
         ramping_counter = 0;
       }    
-      if (RotateRightSpeed > motor_speed) RotateRightSpeed = rotate_speed; // Perform ramping by using counter (PX)
+      if (RotateRightSpeed > rotate_speed) RotateRightSpeed = rotate_speed; // Perform ramping by using counter (PX)
       ForwardSpeed =-1;
       BackwardSpeed = -1;
       LeftSpeed =-1;
@@ -676,6 +668,20 @@ void Retract(){
   digitalWrite(pneumatic, 1);
 }
 
+//PS4
+void PS2_SPI_SEND(byte* Data, uint8_t DataSize)
+{
+  uint8_t i = 0;
+  digitalWrite(SlaveSelect, LOW);   // Set Attention Line Low at Start of Packet
+  while (i < DataSize)            // Block for 450 Microseconds ( (40 + 10) x 9)
+  {
+    SPI_Packet[i] = SPI.transfer(Data[i]);
+    delayMicroseconds(16);          //Delay 10 Microseconds (Seems Compulsory)
+    i = i + 1;
+  } // Please take note PS2 data retrieval takes 450 microseconds , may intefere Stepper motor control timing.
+  digitalWrite(SlaveSelect, HIGH);  // Set Attention Line High after End of Packet
+}
+
 //IMU (added by PX)
 void serialEvent1()
 {
@@ -785,7 +791,6 @@ void setup()
                                     // When Debugging, developer can point to any value of interest according to test case
   IMU_PID_Stepper_Setup_Code();   // Enable IMU(z-axis) & PID
   Sync_Basic_Task();
-  PS4_Repeat_Init_Code(); // Attempt Scan for USB Host Repeatedly
   StepperControlTask.reset();
   DebugMessageTask.reset();  
   InputTask.reset();     // Set InputTask Time stamp to current millis
@@ -799,6 +804,7 @@ void setup()
   OutputTask.enable();    // Enable Output Task to be monitored
   DebugMessageTask.enable();  
   StepperControlTask.enable();
+  PS4_Repeat_Init_Code(); // Attempt Scan for USB Host Repeatedly
   
 }
 

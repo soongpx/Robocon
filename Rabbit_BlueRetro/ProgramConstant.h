@@ -23,11 +23,14 @@
 #define sampletime 0 //sample time for PID in ms
 
 //PS4
-//right now, the library does NOT support hot-pluggable controllers, meaning 
-//you must always either restart your Arduino after you connect the controller, 
-//or call config_gamepad(pins) again after connecting the controller.
-#define PS2X_DEBUG
-#define PS2X_COM_DEBUG
+//13,12,11,10 (Uno)
+//52,50,51,53 (Mega)
+#define SPI_CLK 52
+#define SPI_MISO 50
+#define SPI_MOSI 51
+#define SlaveSelect 53
+#define SlaveAck 2
+#define BufferSize 9
 
 
 enum

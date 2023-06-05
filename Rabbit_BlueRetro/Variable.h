@@ -1,6 +1,5 @@
 #include <AccelStepper.h>
 
-PS2X ps2x;
 AccelStepper stepper1(1, step1Pin, dir1Pin);
 AccelStepper stepper2(1, step2Pin, dir2Pin);
  
@@ -20,18 +19,22 @@ TimedAction PS4_Repeat_Init_Task = TimedAction(1000, PS4_Repeat_Init_Code);
 TimedAction DebugMessageTask = TimedAction(1, DebugMessageTaskCode);
 String DebugMessage = "";
 
-int UP         = 0;
-int RIGHT      = 0;
-int DOWN       = 0;
-int LEFT       = 0;
-int L1         = 0;
-int R1         = 0;
-int L2         = 0;
-int R2         = 0;
-int SQUARE     = 0;
-int CIRCLE     = 0;
-int TRIANGLE   = 0;
-int CROSS      = 0;
+#define PS4_SHARE                 0x01
+#define PS4_UNKNOWN1              0x02
+#define PS4_UNKNOWN2              0x04
+#define PS4_OPTION                0x08
+#define DPAD_UP                   0x10
+#define DPAD_RIGHT                0x20
+#define DPAD_DOWN                 0x40
+#define DPAD_LEFT                 0x80
+#define L2_PRESSED                0x01
+#define R2_PRESSED                0x02
+#define L1_PRESSED                0x04
+#define R1_PRESSED                0x08
+#define GREEN_TRIANGLE_PRESSED    0x10
+#define RED_CIRCLE_PRESSED        0x20
+#define BLUE_CROSS_PRESSED        0x40
+#define PINK_SQUARE_PRESSED       0x80
 
 bool USB_Detected      = false;
 bool UP_Pressed        = false;
@@ -59,9 +62,12 @@ uint8_t MechanismState;
 
 //++++++++++++++++++++++++++++++++ Output Bool Switch & Value ++++++++++++++++++++++++++++++++++//
 //PS4
-int error = 0; 
-byte type = 0;
-byte vibrate = 0;
+uint8_t SPI_Packet[BufferSize] = {0};
+static byte ReadAllData[] = {0x01, 0x42, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+static byte Enter_Config[] = {0x01, 0x43, 0x00, 0x01, 0x00};
+static byte Turn_ON_Analog_Mode[] = {0x01, 0x44, 0x00, 0x01, 0x03, 0x00, 0x00, 0x00, 0x00};
+static byte Maps_Motor[] = {0x01, 0x4D, 0x00, 0x00, 0x01};
+static byte Exit_Config[] = {0x01, 0x43, 0x00, 0x00, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A};
 
 //Locomotion
 int motor_speed           = 180;
