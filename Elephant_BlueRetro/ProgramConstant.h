@@ -7,7 +7,7 @@
 #define dir_2 1 //upper right direction
 #define dir_3 2 //lower left direction
 #define dir_4 3 //lower right direction
-#define motor_speed 120
+#define motor_speed 80
 
 //Mechanism
 #define tilting_pwm_pin 8
@@ -19,6 +19,16 @@
 #define loading_speed 255
 
 #define magnet_dir_pin 7
+
+//PS4
+//13,12,11,10 (Uno)
+//52,50,51,53 (Mega)
+#define SPI_CLK 52
+#define SPI_MISO 50
+#define SPI_MOSI 51
+#define SlaveSelect 53
+#define SlaveAck 2
+#define BufferSize 9
 
 #define sampletime 0 //sample time for PID in ms
 

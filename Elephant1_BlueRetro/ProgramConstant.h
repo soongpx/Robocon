@@ -1,21 +1,22 @@
 //Mechanism
-#define lifting_pwm_pin 3
-#define lifting_dir_pin 1
-#define lifting_speed 255 
+#define lift_pwm 3
+#define lift_dir 23
 
-#define loading_dir_pin 2
+#define pneumatic 24
 
-#define conveyor_pwm_pin 2
-#define conveyor_dir_pin 0
-
-#define mechanism_speed 120
+#define conveyor_pwm 2
+#define conveyor_dir 22
 
 //PS4
-//right now, the library does NOT support hot-pluggable controllers, meaning 
-//you must always either restart your Arduino after you connect the controller, 
-//or call config_gamepad(pins) again after connecting the controller.
-#define PS2X_DEBUG
-#define PS2X_COM_DEBUG
+//13,12,11,10 (Uno)
+//52,50,51,53 (Mega)
+#define SPI_CLK 52
+#define SPI_MISO 50
+#define SPI_MOSI 51
+#define SlaveSelect 53
+#define SlaveAck 2
+#define BufferSize 9
+
 
 
 enum
@@ -26,7 +27,6 @@ enum
   CircleMove,
   RectangleMove,
   CrossMove,
-  TriangleMove,
   Move_Forward,
   Move_Backward,
   Move_Left,

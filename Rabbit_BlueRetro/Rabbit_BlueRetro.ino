@@ -11,7 +11,6 @@
 //PID
 PID myPID(&Input, &Output, &setpoint, Kp, Ki, Kd, DIRECT);
 
-
 void DebugMessageTaskCode()
 {
   if(DebugMessage != "")
@@ -88,6 +87,8 @@ void ClearButtonStatus()
   CIRCLE_Pressed    = false;
   TRIANGLE_Pressed  = false;
   CROSS_Pressed     = false;
+  L2_Pressed        = false;
+  R2_Pressed        = false;
 }
 void ProcessTaskCode()
 {
@@ -129,31 +130,43 @@ void ProcessTaskCode()
       {
         OperatingState = Move_Forward;
         Serial.println("User Select to Move Forward");
+        set_speed = motor_speed;
+        ramp_down = 0;
       }
       else if (DOWN_Pressed)
       {
         OperatingState = Move_Backward;
         Serial.println("User Select to Move Backward");
+        set_speed = motor_speed;
+        ramp_down = 0;
       }
       else if (LEFT_Pressed)
       {
         OperatingState = Move_Left;
         Serial.println("User Select to Move Left");
+        set_speed = motor_speed;
+        ramp_down = 0;
       }
       else if (RIGHT_Pressed)
       {
         OperatingState = Move_Right;
         Serial.println("User Select to Move Right");
+        set_speed = motor_speed;
+        ramp_down = 0;
       }
       else if (L1_Pressed)
       {
         OperatingState = Rotate_Left;
         Serial.println("User Select to Rotate Left");
+        set_speed = rotate_speed;
+        ramp_down = 0;
       }
       else if (R1_Pressed)
       {
         OperatingState = Rotate_Right;
         Serial.println("User Select to Rotate Right");
+        set_speed = rotate_speed;
+        ramp_down = 0;
       }
       else 
       {
@@ -188,7 +201,7 @@ void ProcessTaskCode()
           Stepper2Move = 1;
           prev_tri = 0;
         }
-      } else if (CIRCLE_Pressed){    
+      } else {    
         Stepper1Move = 0;
         Stepper2Move = 0;
         prev_tri = 0;
@@ -259,6 +272,15 @@ void ProcessTaskCode()
         prev_right = 0;
       }
 
+      if (L1_Pressed){
+        RotateLeftSpeed = low_speed;
+      } else if (R1_Pressed){
+        RotateRightSpeed = low_speed;
+      } else {
+        RotateLeftSpeed = 0;
+        RotateRightSpeed = 0;
+      }
+
       if(CROSS_Pressed) 
       {
         if (!prev_tri){
@@ -308,6 +330,17 @@ void ProcessTaskCode()
         shoot = 0;
         ClearButtonStatus();    
       }
+      
+      if (L1_Pressed){
+        RotateLeftSpeed = low_speed;
+        ClearButtonStatus();   
+      } else if (R1_Pressed){
+        RotateRightSpeed = low_speed;
+        ClearButtonStatus(); 
+      } else {
+        RotateLeftSpeed = 0;
+        RotateRightSpeed = 0;
+      }
 
       if(CROSS_Pressed) 
       {
@@ -331,21 +364,57 @@ void ProcessTaskCode()
       if(CROSS_Pressed) 
       {
         // Exit Forward Move Operation
+        tilt_down = 0;
+        tilt_up = 0;
+        Stepper1Move = 0;
+        Stepper2Move = 0;
         ramping_counter = 0; 
-        ForwardSpeed = -1;
+        ramp_down = 1;
         OperatingState = CheckActionToDo;
+      }
+      if(TRIANGLE_Pressed){
+        tilt_up = 1;
+        tilt_down = 0;
+      } else if (SQUARE_Pressed){
+        tilt_down = 1;
+        tilt_up = 0;
+      } else if (CIRCLE_Pressed){
+        stepper1.moveTo(-distance1);
+        stepper2.moveTo(distance1);
+        Stepper1Move = 1;
+        Stepper2Move = 1;
+      } else if (UP_Pressed){
+        tilt_down = 0;
+        tilt_up = 0;
+        Stepper1Move = 0;
+        Stepper2Move = 0;
       }
       myPID.Compute();
       Output = 0;         // PID output is not used
+      if(L2_Pressed){
+        set_speed--;
+      } else if (R2_Pressed){
+        set_speed++;
+      } 
       ramping_counter++;
       if (ramping_counter == 1){     //check time to max speed (max speed x ramping counter x function time (10ms))
-        ForwardSpeed++;  
+        if (ForwardSpeed > set_speed){
+          ForwardSpeed--;
+        } else if (ForwardSpeed < set_speed){
+          ForwardSpeed++;
+        } else{
+          ForwardSpeed = set_speed;
+        }
         ramping_counter = 0;
       }    
-      if (ForwardSpeed > motor_speed) ForwardSpeed = motor_speed; // Perform ramping by using counter (PX)
+      if (ForwardSpeed > set_speed) ForwardSpeed = set_speed; // Perform ramping by using counter (PX)
+      if (set_speed <= 0) set_speed = 0;
+      else if (set_speed >= 255) set_speed = 255;
       BackwardSpeed =-1;
       LeftSpeed = -1;
       RightSpeed = -1;
+      RotateLeftSpeed = -1;
+      RotateRightSpeed = -1;
       ClearButtonStatus();      // Check Carefully if this is necessary
       break;
       
@@ -353,21 +422,57 @@ void ProcessTaskCode()
       if(CROSS_Pressed) 
       {
         // Exit Backward Move Operation 
+        tilt_down = 0;
+        tilt_up = 0;
+        Stepper1Move = 0;
+        Stepper2Move = 0;
         ramping_counter = 0;
-        BackwardSpeed = -1;
+        ramp_down = 1;
         OperatingState = CheckActionToDo;
+      }
+      if(TRIANGLE_Pressed){
+        tilt_up = 1;
+        tilt_down = 0;
+      } else if (SQUARE_Pressed){
+        tilt_down = 1;
+        tilt_up = 0;
+      } else if (CIRCLE_Pressed){
+        stepper1.moveTo(-distance1);
+        stepper2.moveTo(distance1);
+        Stepper1Move = 1;
+        Stepper2Move = 1;
+      } else if (UP_Pressed){
+        tilt_down = 0;
+        tilt_up = 0;
+        Stepper1Move = 0;
+        Stepper2Move = 0;
       }
       myPID.Compute();
       Output = 0;         // PID output is not used
+      if(L2_Pressed){
+        set_speed--;
+      } else if (R2_Pressed){
+        set_speed++;
+      } 
       ramping_counter++;
-      if (ramping_counter == 1){    //check ramping_counter (max speed x ramping counter x function time (10ms)
-        BackwardSpeed++;  
+      if (ramping_counter == 1){     //check time to max speed (max speed x ramping counter x function time (10ms))
+        if (BackwardSpeed > set_speed){
+          BackwardSpeed--;
+        } else if (BackwardSpeed < set_speed){
+          BackwardSpeed++;  
+        } else{
+          BackwardSpeed = set_speed;
+        }
         ramping_counter = 0;
-      }  
-      if (BackwardSpeed > motor_speed) BackwardSpeed = motor_speed; // Perform ramping by using counter (PX)
+      }    
+      if (BackwardSpeed > set_speed) BackwardSpeed = set_speed; // Perform ramping by using counter (PX)
+      if (set_speed <= 0) set_speed = 0;
+      else if (set_speed > 255) set_speed = 255;
       ForwardSpeed =-1;
       LeftSpeed = -1;
       RightSpeed = -1;
+      RotateLeftSpeed = -1;
+      RotateRightSpeed = -1;
       ClearButtonStatus();      // Check Carefully if this is necessary
       break;
       
@@ -375,21 +480,57 @@ void ProcessTaskCode()
       if(CROSS_Pressed) 
       {
         // Exit Left Move Operation 
+        tilt_down = 0;
+        tilt_up = 0;
+        Stepper1Move = 0;
+        Stepper2Move = 0;
         ramping_counter = 0;
-        LeftSpeed = -1;
+        ramp_down = 1;
         OperatingState = CheckActionToDo;
-      }      
+      }     
+      if(TRIANGLE_Pressed){
+        tilt_up = 1;
+        tilt_down = 0;
+      } else if (SQUARE_Pressed){
+        tilt_down = 1;
+        tilt_up = 0;
+      } else if (CIRCLE_Pressed){
+        stepper1.moveTo(-distance1);
+        stepper2.moveTo(distance1);
+        Stepper1Move = 1;
+        Stepper2Move = 1;
+      } else if (UP_Pressed){
+        tilt_down = 0;
+        tilt_up = 0;
+        Stepper1Move = 0;
+        Stepper2Move = 0;
+      }
       myPID.Compute();
       Output = 0;         // PID output is not used
+      if(L2_Pressed){
+        set_speed--;
+      } else if (R2_Pressed){
+        set_speed++;
+      } 
       ramping_counter++;
-      if (ramping_counter == 1){     //check ramping_counter (max speed x ramping counter x function time (10ms)
-        LeftSpeed++;  
+      if (ramping_counter == 1){     //check time to max speed (max speed x ramping counter x function time (10ms))
+        if (LeftSpeed > set_speed){
+          LeftSpeed--;
+        } else if (LeftSpeed < set_speed){
+          LeftSpeed++;  
+        } else{
+          LeftSpeed = set_speed;
+        }
         ramping_counter = 0;
       }    
-      if (LeftSpeed > motor_speed) LeftSpeed = motor_speed; // Perform ramping by using counter (PX)
+      if (LeftSpeed > set_speed) LeftSpeed = set_speed; // Perform ramping by using counter (PX)
+      if (set_speed <= 0) set_speed = 0;
+      else if (set_speed > 255) set_speed = 255;
       ForwardSpeed =-1;
       BackwardSpeed = -1;
       RightSpeed =-1;
+      RotateLeftSpeed = -1;
+      RotateRightSpeed = -1;
       ClearButtonStatus();      // Check Carefully if this is necessary
       break;
       
@@ -397,21 +538,57 @@ void ProcessTaskCode()
       if(CROSS_Pressed) 
       {
         // Exit Right Move Operation 
+        tilt_down = 0;
+        tilt_up = 0;
+        Stepper1Move = 0;
+        Stepper2Move = 0;
         ramping_counter = 0;
-        RightSpeed = -1;
+        ramp_down = 1;
         OperatingState = CheckActionToDo;
+      }
+      if(TRIANGLE_Pressed){
+        tilt_up = 1;
+        tilt_down = 0;
+      } else if (SQUARE_Pressed){
+        tilt_down = 1;
+        tilt_up = 0;
+      } else if (CIRCLE_Pressed){
+        stepper1.moveTo(-distance1);
+        stepper2.moveTo(distance1);
+        Stepper1Move = 1;
+        Stepper2Move = 1;
+      } else if (UP_Pressed){
+        tilt_down = 0;
+        tilt_up = 0;
+        Stepper1Move = 0;
+        Stepper2Move = 0;
       }
       myPID.Compute();
       Output = 0;         // PID output is not used
+      if(L2_Pressed){
+        set_speed--;
+      } else if (R2_Pressed){
+        set_speed++;
+      } 
       ramping_counter++;
-      if (ramping_counter == 1){     //check ramping_counter (max speed x ramping counter x function time (10ms)
-        RightSpeed++;  
+      if (ramping_counter == 1){     //check time to max speed (max speed x ramping counter x function time (10ms))
+        if (RightSpeed > set_speed){
+          RightSpeed--;
+        } else if (RightSpeed < set_speed){
+          RightSpeed++;  
+        } else{
+          RightSpeed = set_speed;
+        }
         ramping_counter = 0;
-      }     
-      if (RightSpeed > motor_speed) RightSpeed = motor_speed; // Perform ramping by using counter (PX)
+      }    
+      if (RightSpeed > set_speed) RightSpeed = set_speed; // Perform ramping by using counter (PX)
+      if (set_speed <= 0) set_speed = 0;
+      else if (set_speed > 255) set_speed = 255;
       ForwardSpeed =-1;
       BackwardSpeed = -1;
       LeftSpeed =-1;
+      RotateLeftSpeed = -1;
+      RotateRightSpeed = -1;
       ClearButtonStatus();      // Check Carefully if this is necessary
       break;
       
@@ -419,16 +596,50 @@ void ProcessTaskCode()
       if(CROSS_Pressed) 
       {
         // Exit Left Move Operation 
+        tilt_down = 0;
+        tilt_up = 0;
+        Stepper1Move = 0;
+        Stepper2Move = 0;
         ramping_counter = 0;
-        RotateLeftSpeed = -1;
+        ramp_down = 1;
         OperatingState = CheckActionToDo;
-      }      
+      } 
+      if(TRIANGLE_Pressed){
+        tilt_up = 1;
+        tilt_down = 0;
+      } else if (SQUARE_Pressed){
+        tilt_down = 1;
+        tilt_up = 0;
+      } else if (CIRCLE_Pressed){
+        stepper1.moveTo(-distance1);
+        stepper2.moveTo(distance1);
+        Stepper1Move = 1;
+        Stepper2Move = 1;
+      } else if (UP_Pressed){
+        tilt_down = 0;
+        tilt_up = 0;
+        Stepper1Move = 0;
+        Stepper2Move = 0;
+      }    
+      if(L2_Pressed){
+        set_speed--;
+      } else if (R2_Pressed){
+        set_speed++;
+      } 
       ramping_counter++;
-      if (ramping_counter == 1){     //check ramping_counter (max speed x ramping counter x function time (10ms)
-        RotateLeftSpeed++;  
+      if (ramping_counter == 1){     //check time to max speed (max speed x ramping counter x function time (10ms))
+        if (RotateLeftSpeed > set_speed){
+          RotateLeftSpeed--;
+        } else if (RotateLeftSpeed < set_speed){
+          RotateLeftSpeed++;  
+        } else{
+          RotateLeftSpeed = set_speed;
+        }
         ramping_counter = 0;
       }    
-      if (RotateLeftSpeed > rotate_speed) RotateLeftSpeed = rotate_speed; // Perform ramping by using counter (PX)
+      if (RotateLeftSpeed > set_speed) RotateLeftSpeed = set_speed; // Perform ramping by using counter (PX)
+      if (set_speed <= 0) set_speed = 0;
+      else if (set_speed > 255) set_speed = 255;
       ForwardSpeed =-1;
       BackwardSpeed = -1;
       LeftSpeed = -1;
@@ -441,16 +652,50 @@ void ProcessTaskCode()
       if(CROSS_Pressed) 
       {
         // Exit Right Move Operation 
+        tilt_down = 0;
+        tilt_up = 0;
+        Stepper1Move = 0;
+        Stepper2Move = 0;
         ramping_counter = 0;
-        RotateRightSpeed = -1;
+        ramp_down = 1;
         OperatingState = CheckActionToDo;
       }
+      if(TRIANGLE_Pressed){
+        tilt_up = 1;
+        tilt_down = 0;
+      } else if (SQUARE_Pressed){
+        tilt_down = 1;
+        tilt_up = 0;
+      } else if (CIRCLE_Pressed){
+        stepper1.moveTo(-distance1);
+        stepper2.moveTo(distance1);
+        Stepper1Move = 1;
+        Stepper2Move = 1;
+      } else if (UP_Pressed){
+        tilt_down = 0;
+        tilt_up = 0;
+        Stepper1Move = 0;
+        Stepper2Move = 0;
+      }    
+      if(L2_Pressed){
+        set_speed--;
+      } else if (R2_Pressed){
+        set_speed++;
+      } 
       ramping_counter++;
-      if (ramping_counter == 1){     //check ramping_counter (max speed x ramping counter x function time (10ms)
-        RotateRightSpeed++;  
+      if (ramping_counter == 1){     //check time to max speed (max speed x ramping counter x function time (10ms))
+        if (RotateRightSpeed > set_speed){
+          RotateRightSpeed--;
+        } else if (RotateRightSpeed < set_speed){
+          RotateRightSpeed++;  
+        } else{
+          RotateRightSpeed = set_speed;
+        }
         ramping_counter = 0;
       }    
-      if (RotateRightSpeed > rotate_speed) RotateRightSpeed = rotate_speed; // Perform ramping by using counter (PX)
+      if (RotateRightSpeed > set_speed) RotateRightSpeed = set_speed; // Perform ramping by using counter (PX)
+      if (set_speed <= 0) set_speed = 0;
+      else if (set_speed > 255) set_speed = 255;
       ForwardSpeed =-1;
       BackwardSpeed = -1;
       LeftSpeed =-1;
@@ -468,6 +713,25 @@ void ProcessTaskCode()
 
 void OutputTaskCode()
 {
+  if (ramp_down) {
+    if(LeftSpeed > 0)                 LeftSpeed = 0;
+    else if(RightSpeed > 0)           RightSpeed = 0;
+    else if(ForwardSpeed > 0)         ForwardSpeed = 0;
+    else if(BackwardSpeed > 0)        BackwardSpeed = 0;
+    else if(RotateLeftSpeed > 0)      RotateLeftSpeed = 0;
+    else if(RotateRightSpeed > 0)     RotateRightSpeed = 0; 
+    else {      
+      ForwardSpeed =-1;
+      BackwardSpeed = -1;
+      LeftSpeed =-1;
+      RightSpeed = -1;
+      RotateLeftSpeed = -1;
+      RotateRightSpeed = -1;
+    }
+  }
+
+  if(LeftSpeed <= 0 && RightSpeed <= 0 && ForwardSpeed <= 0 && BackwardSpeed <= 0 && RotateLeftSpeed <= 0 && RotateRightSpeed <= 0) ramp_down = 0;
+
   if(LeftSpeed > 0)                 MoveLeft(LeftSpeed);
   else if(RightSpeed > 0)           MoveRight(RightSpeed); 
   else if(ForwardSpeed > 0)         MoveFront(ForwardSpeed);
@@ -487,7 +751,6 @@ void OutputTaskCode()
   if(rotate)                        Start_Flywheel_Front();
   else if(keep)                     Start_Flywheel_Back();
   else                              Stop_Flywheel();
-
 
 }
 
@@ -511,6 +774,7 @@ void MoveFront(int pwm)
   PORTA |= (1 << dir_4);
   PORTA |= (1 << dir_1);
   PORTA |= (1 << dir_3);
+  Serial.println(pwm);
   
   analogWrite(wheel1, cap200PWMValue(pwm - Output));
   analogWrite(wheel2, cap200PWMValue(pwm + Output));
@@ -524,6 +788,7 @@ void MoveBack(int  pwm)
   PORTA &= ~(1 << dir_2);
   PORTA &= ~(1 << dir_3);
   PORTA &= ~(1 << dir_4);
+  Serial.println(pwm);
    
   analogWrite(wheel1, cap200PWMValue(pwm + Output));
   analogWrite(wheel2, cap200PWMValue(pwm - Output));
@@ -566,6 +831,7 @@ void RotateLeft(int pwm)
   delayMicroseconds(100); // Make sure all direction set to 0, only then turn on correct direction
   PORTA |= (1 << dir_2);
   PORTA |= (1 << dir_4);
+  Serial.println("Rotate Left");
   
   analogWrite(wheel1, cap200PWMValue(pwm));
   analogWrite(wheel2, cap200PWMValue(pwm));
@@ -580,6 +846,7 @@ void RotateRight(int pwm)
   delayMicroseconds(100); // Make sure all direction set to 0, only then turn on correct direction
   PORTA |= (1 << dir_1);
   PORTA |= (1 << dir_3);
+  Serial.println("Rotate Right");
   
   analogWrite(wheel1, cap200PWMValue(pwm));
   analogWrite(wheel2, cap200PWMValue(pwm));

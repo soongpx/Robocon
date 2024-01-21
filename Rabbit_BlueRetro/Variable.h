@@ -72,6 +72,7 @@ static byte Exit_Config[] = {0x01, 0x43, 0x00, 0x00, 0x5A, 0x5A, 0x5A, 0x5A, 0x5
 //Locomotion
 int motor_speed           = 180;
 int rotate_speed          = 100;
+int low_speed             = 50;
 int16_t ForwardSpeed      =-1;
 int16_t BackwardSpeed     =-1;
 int16_t LeftSpeed         =-1;
@@ -79,7 +80,8 @@ int16_t RightSpeed        =-1;
 int16_t RotateLeftSpeed   =-1;
 int16_t RotateRightSpeed  =-1;
 int ramping_counter       = 0;
-bool Stop_Loco            = 0;
+bool ramp_down            = 0;
+int set_speed             = 0;
 
 //Mechanism
 bool tilt_up = 0;
